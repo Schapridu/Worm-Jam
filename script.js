@@ -82,6 +82,12 @@ let levelTransitioning = false;
 let coins = 0;
 let purchasedItems = {}; // зберігатимемо куплені речі
 
+let maxTime = 60;
+let timeLeft = 60;
+let timerActive = false;
+let gameOver = false;
+const timeBar = document.getElementById('time-bar');
+
 const levels = [
     // Level 1
     [
@@ -220,7 +226,18 @@ function generateProceduralLevel(levelIndex) {
 
 function initGame() {
     levelTransitioning = false;
+    gameOver = false;
     levelIndicator.textContent = `Рівень ${currentLevel + 1}`;
+    
+    // Встановлюємо час залежно від рівня
+    maxTime = 20 + currentLevel * 10;
+    if (currentLevel > 3) {
+        maxTime = 40 + Math.floor(currentLevel * 15);
+    }
+    timeLeft = maxTime;
+    timerActive = true;
+    timeBar.style.width = '100%';
+    timeBar.style.backgroundColor = '#2ed573';
     
     let levelData;
     if (currentLevel < levels.length) {
@@ -297,7 +314,7 @@ function canEscape(snake) {
 }
 
 canvas.addEventListener('click', (e) => {
-    if (levelTransitioning) return;
+    if (levelTransitioning || gameOver) return;
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -420,6 +437,28 @@ function gameLoop(time) {
     lastTime = time;
     if (dt > 0.1) dt = 0.1; 
     
+    if (timerActive && !levelTransitioning && !gameOver) {
+        timeLeft -= dt;
+        let pct = (timeLeft / maxTime) * 100;
+        if (pct < 0) pct = 0;
+        timeBar.style.width = pct + '%';
+        
+        if (pct < 25) {
+            timeBar.style.backgroundColor = '#e74c3c'; // red
+        } else if (pct < 50) {
+            timeBar.style.backgroundColor = '#f1c40f'; // yellow
+        } else {
+            timeBar.style.backgroundColor = '#2ed573'; // green
+        }
+        
+        if (timeLeft <= 0) {
+            gameOver = true;
+            timerActive = false;
+            playSound('block');
+            setTimeout(initGame, 2000);
+        }
+    }
+    
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     ctx.fillStyle = '#e1e5ea';
@@ -473,6 +512,15 @@ function gameLoop(time) {
         ctx.fillStyle = '#e67e22';
         ctx.font = 'bold 32px sans-serif';
         ctx.fillText(`+${reward} 🍎`, canvas.width/2, canvas.height/2 + 30);
+    }
+
+    if (gameOver) {
+        ctx.fillStyle = 'rgba(231, 76, 60, 0.7)';
+        ctx.fillRect(0,0, canvas.width, canvas.height);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 48px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText("Час вийшов!", canvas.width/2, canvas.height/2);
     }
     
     requestAnimationFrame(gameLoop);
